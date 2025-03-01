@@ -1,9 +1,10 @@
 package org.example.enums;
 
 public enum SharedResource {
-    INPUT_OUTPUT,
+    IO,
     MEMORY,
     CAMERA,
-    MICROPHONE;
+    MICROPHONE,
+    KEYBOARD;
 
 }

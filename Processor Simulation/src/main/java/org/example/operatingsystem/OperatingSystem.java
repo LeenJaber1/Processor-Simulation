@@ -1,78 +1,79 @@
 package org.example.operatingsystem;
 
 import org.example.processor.Processor;
-import org.example.utils.ResourceManager;
 import org.example.scheduler.Scheduler;
 import org.example.task.Task;
+import org.example.utils.ResourceManager;
 
-import java.util.concurrent.*;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.BlockingQueue;
 
-public abstract class OperatingSystem implements Runnable{
+public abstract class OperatingSystem implements Runnable {
     private String systemName;
-    private BlockingQueue<Task> readyQueue = new LinkedBlockingQueue<>();
+    private BlockingQueue<Task> readyQueue;
+    private Map<Integer, List<Task>> allTasks = new HashMap<>();
     private int numberOfProcessors;
-    private ExecutorService processors;
+    private Map<Processor, Thread> processors = new HashMap<>();
     private Scheduler scheduler;
     private ResourceManager resourceManager = new ResourceManager();
     private int clockCycles;
     private volatile boolean isRunning = true;
 
 
-    public OperatingSystem(String systemName, int numberOfProcessors, Scheduler scheduler, int clockCycles) {
+    public OperatingSystem(String systemName, int numberOfProcessors, Scheduler scheduler, int clockCycles, BlockingQueue<Task> readyQueue) {
         this.systemName = systemName;
         this.numberOfProcessors = numberOfProcessors;
         this.scheduler = scheduler;
-        this.processors = Executors.newFixedThreadPool(this.numberOfProcessors);
         this.clockCycles = clockCycles;
+        this.readyQueue = readyQueue;
     }
 
     @Override
     public void run() {
         turnOnProcessors();
-
-        for (int i = 0; i < this.clockCycles && this.isRunning; i++) {
-            System.out.println("Clock Cycle " + (i + 1) + "/" + this.clockCycles);
-
-            // Accept new tasks during the cycle
-            acceptTasks(i);
+        saveTasks();
+        for (int i = 1; i <= this.clockCycles && this.isRunning; i++) {
+            System.out.println("Clock Cycle " + (i) + "/" + this.clockCycles);
+            acceptTask(i);
             try {
-                Thread.sleep(1000); // Simulating one second per cycle
+                Thread.sleep(3000); // Simulating one second per cycle
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
                 System.out.println("System interrupted before completing all cycles.");
                 break;
             }
         }
-
         turnOffSystem();
+        Thread.currentThread().interrupt();
     }
 
     public void turnOffSystem() {
         System.out.println("Shutting down system...");
         this.isRunning = false;
-
-        this.processors.shutdown();
-        try {
-            if (!this.processors.awaitTermination(5, TimeUnit.SECONDS)) {
-                this.processors.shutdownNow();
-            }
-        } catch (InterruptedException e) {
-            this.processors.shutdownNow();
+        for (Map.Entry<Processor, Thread> pair : this.processors.entrySet()) {
+            pair.getKey().setRunning(false);
+            pair.getValue().interrupt();
         }
-
         this.readyQueue.clear(); // Clear remaining tasks
         System.out.println("System shut down.");
     }
 
-    public abstract void acceptTasks(int clockCycle);
+    public abstract void acceptTask(int clockCycle);
 
-    public void turnOnProcessors(){
+    public abstract void saveTasks();
+
+    public void turnOnProcessors() {
         for (int i = 0; i < this.numberOfProcessors; i++) {
-            this.processors.submit(new Processor(readyQueue, resourceManager));
+            Processor processor = new Processor(readyQueue, resourceManager, this.scheduler);
+            Thread thread = new Thread(processor);
+            thread.start();
+            this.processors.put(processor, thread);
         }
     }
 
-    public abstract boolean performContextSwitching();
+    public abstract void performContextSwitching(Task task);
 
     public String getSystemName() {
         return this.systemName;
@@ -98,11 +99,12 @@ public abstract class OperatingSystem implements Runnable{
         this.numberOfProcessors = numberOfProcessors;
     }
 
-    public ExecutorService getProcessors() {
-        return this.processors;
+
+    public Map<Processor, Thread> getProcessors() {
+        return processors;
     }
 
-    public void setProcessors(ExecutorService processors) {
+    public void setProcessors(Map<Processor, Thread> processors) {
         this.processors = processors;
     }
 
@@ -136,5 +138,13 @@ public abstract class OperatingSystem implements Runnable{
 
     public void setRunning(boolean running) {
         this.isRunning = running;
+    }
+
+    public Map<Integer, List<Task>> getAllTasks() {
+        return allTasks;
+    }
+
+    public void setAllTasks(Map<Integer, List<Task>> allTasks) {
+        this.allTasks = allTasks;
     }
 }

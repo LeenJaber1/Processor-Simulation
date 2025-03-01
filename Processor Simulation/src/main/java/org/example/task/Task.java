@@ -5,14 +5,14 @@ import org.example.enums.TaskState;
 
 import java.util.UUID;
 
-public class Task {
+public class Task implements Comparable<Task> {
+    private final SharedResource resource;
     private UUID id;
     private int burstTime;
     private int creationTime;
     private int priority;
-    private String taskName;
+    private int taskNum;
     private PersonalControlBlock pcb;
-    private final SharedResource resource;
 
 
     public Task(int burstTime, int creationTime, int priority, SharedResource resource) {
@@ -21,7 +21,7 @@ public class Task {
         this.creationTime = creationTime;
         this.priority = priority;
         this.resource = resource;
-        this.pcb = new PersonalControlBlock(this.id, TaskState.NEW , this.burstTime);
+        this.pcb = new PersonalControlBlock(this.id, TaskState.NEW, this.burstTime);
     }
 
     public PersonalControlBlock getPcb() {
@@ -61,19 +61,34 @@ public class Task {
         this.priority = priority;
     }
 
-    public String getTaskName() {
-        return taskName;
+    public int getTaskNum() {
+        return taskNum;
     }
 
-    public void setTaskName(String taskName) {
-        this.taskName = taskName;
+    public void setTaskNum(int taskNum) {
+        this.taskNum = taskNum;
     }
 
     public SharedResource getResource() {
         return resource;
     }
 
-    public void saveState(TaskState taskState){
+    public void saveState(TaskState taskState) {
         this.pcb.setTaskState(taskState);
+    }
+
+    @Override
+    public int compareTo(Task other) {
+        return Integer.compare(other.priority, this.priority);
+    }
+
+    @Override
+    public int hashCode() {
+        return super.hashCode();
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        return super.equals(obj);
     }
 }
